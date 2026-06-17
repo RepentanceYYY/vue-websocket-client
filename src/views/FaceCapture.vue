@@ -35,10 +35,10 @@
       <div class="flex gap-2.5">
         <button 
           :disabled="isStreaming" 
-          @click="restartCameras" 
+          @click="handleStartClick" 
           class="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer"
         >
-          ▶ 开启
+          ▶ {{ videoDevices.length === 0 ? '加载并开启' : '开启' }}
         </button>
         
         <button 
@@ -90,31 +90,52 @@ const videoDevices = ref<MediaDeviceInfo[]>([]);
 const selectedRgbId = ref<string>('');
 const selectedIrId = ref<string>('');
 const isStreaming = ref<boolean>(false);
+const hasRequestedPermission = ref<boolean>(false); // 标记是否已经要过权限
 
 let rgbStream: MediaStream | null = null;
 let irStream: MediaStream | null = null;
 
-// 1. 初始化并仅获取设备列表
-const initDevices = async () => {
+// 仅获取设备列表，绝不主动要摄像头权限
+const loadDeviceListOnly = async () => {
   try {
-    // 唤起一次权限申请以便拿到设备的 label 名字
-    await navigator.mediaDevices.getUserMedia({ video: true });
     const devices = await navigator.mediaDevices.enumerateDevices();
     videoDevices.value = devices.filter(device => device.kind === 'videoinput');
-
-    if (videoDevices.value.length === 0) {
-      alert('未检测到任何视频输入设备');
-      return;
+    
+    // 如果之前已经有权限了（能拿到 label 且不为空），直接自动对准 ID
+    if (videoDevices.value.length > 0 && videoDevices.value[0].label) {
+      autoDetectCameras();
     }
-
-    // 仅自动对准设备 ID，不主动 restartCameras 开启
-    autoDetectCameras();
   } catch (err: any) {
-    alert(`摄像头权限获取失败: ${err.message}`);
+    console.error('获取设备列表失败:', err);
   }
 };
 
-// 2. 自动识别 RGB 和 IR 镜头
+// 2. 【主动拉起】真正去要权限并刷新设备 Label 名字
+const requestPermissionAndLoad = async () => {
+  try {
+    // 唤起权限弹窗，并立刻关闭临时流
+    const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    tempStream.getTracks().forEach(track => track.stop());
+    
+    // 授权成功后，重新读取设备，此时 label 将不会是空的
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    videoDevices.value = devices.filter(device => device.kind === 'videoinput');
+    
+    if (videoDevices.value.length === 0) {
+      alert('未检测到任何视频输入设备');
+      return false;
+    }
+
+    autoDetectCameras();
+    hasRequestedPermission.value = true;
+    return true;
+  } catch (err: any) {
+    alert(`摄像头权限获取失败: ${err.message}`);
+    return false;
+  }
+};
+
+// 3. 自动识别 RGB 和 IR 镜头
 const autoDetectCameras = () => {
   videoDevices.value.forEach(device => {
     const label = device.label.toLowerCase();
@@ -133,7 +154,7 @@ const autoDetectCameras = () => {
   }
 };
 
-// 3. 打开指定的摄像头视频流
+// 4. 打开指定的摄像头视频流
 const openCamera = async (deviceId: string, videoElement: HTMLVideoElement | null): Promise<MediaStream | null> => {
   if (!deviceId || !videoElement) return null;
 
@@ -155,16 +176,20 @@ const openCamera = async (deviceId: string, videoElement: HTMLVideoElement | nul
   }
 };
 
-// 下拉框改变时触发
-const handleDeviceChange = async () => {
-  if (isStreaming.value) {
-    await restartCameras();
+// 5. 【接管点击】开启按钮点击事件
+const handleStartClick = async () => {
+  // 如果之前没有获取过权限，或者列表是空的（说明 label 是空的），先拉起权限
+  if (!hasRequestedPermission.value || videoDevices.value.length === 0 || !videoDevices.value[0].label) {
+    const success = await requestPermissionAndLoad();
+    if (!success) return;
   }
+  
+  // 权限 OK 后，直接调用原有的开启逻辑
+  await restartCameras();
 };
 
-// 4. 【点击开启】启动双路摄像头
+// 6. 启动双路摄像头
 const restartCameras = async () => {
-  // 启动前先清空旧状态
   stopAllStreams();
 
   if (!selectedRgbId.value && !selectedIrId.value) {
@@ -182,7 +207,7 @@ const restartCameras = async () => {
   isStreaming.value = true;
 };
 
-// 5. 点击直接下载两张照片
+// 7. 点击直接下载两张照片
 const downloadBothPhotos = () => {
   const rgbBase64 = drawToCanvas(rgbVideoRef.value, rgbCanvasRef.value);
   const irBase64 = drawToCanvas(irVideoRef.value, irCanvasRef.value);
@@ -219,14 +244,12 @@ const triggerDownload = (base64Data: string, fileName: string) => {
   document.body.removeChild(downloadLink);
 };
 
-// 6. 【秒停优化】关闭并释放视频流
+// 8. 关闭并释放视频流
 const stopAllStreams = () => {
-  // ⚡ 优化体验核心：立刻切断 UI 层与摄像头的绑定，画面瞬间变黑
   if (rgbVideoRef.value) rgbVideoRef.value.srcObject = null;
   if (irVideoRef.value) irVideoRef.value.srcObject = null;
   isStreaming.value = false;
 
-  // 将具体硬件轨道的关闭动作留给后面执行，绝不卡顿 UI
   if (rgbStream) {
     rgbStream.getTracks().forEach(track => track.stop());
     rgbStream = null;
@@ -239,7 +262,8 @@ const stopAllStreams = () => {
 
 // 生命周期
 onMounted(() => { 
-  initDevices(); 
+  // 进页面只静默获取设备列表
+  loadDeviceListOnly(); 
 });
 
 onBeforeUnmount(() => { 
