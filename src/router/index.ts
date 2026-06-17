@@ -2,11 +2,21 @@ import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-rou
 
 // 路由规则数组
 const routes: Array<RouteRecordRaw> = [
+
   {
     path: '/',
     name: 'Home',
     component: () => import('@/views/Home.vue')
+  }, {
+    path: '/faceCapture',
+    name: 'FaceCapture',
+    component: () => import('@/views/FaceCapture.vue')
+  }, {
+    path: '/image',
+    name: 'Image',
+    component: () => import('@/views/Image.vue')
   }
+
 ]
 
 // 创建 router 实例，改用 hash 模式

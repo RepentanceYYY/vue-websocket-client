@@ -3,14 +3,19 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue(),tailwindcss()],
-   resolve: {
-    // ↓路径别名，主要是这部分
+  plugins: [vue(), tailwindcss()],
+  
+  resolve: {
     alias: {
       "@": resolve(__dirname, "./src")
     }
   },
-  base: './'
+
+  base: './',
+  server: {
+    port: 5174,      // 端口
+    host: true,      // 允许局域网访问
+    open: false       // 自动打开浏览器
+  }
 })
