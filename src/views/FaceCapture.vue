@@ -2,15 +2,13 @@
   <div class="max-w-4xl mx-auto p-5 bg-gray-50 rounded-lg font-sans">
     <h2 class="text-center text-xl font-bold text-gray-800 mb-6">双目摄像头抓拍与下载</h2>
 
-    <div class="flex flex-wrap gap-5 justify-center items-center mb-6 p-4 bg-white rounded-md shadow-sm border border-gray-100">
-      
+    <div
+      class="flex flex-wrap gap-5 justify-center items-center mb-6 p-4 bg-white rounded-md shadow-sm border border-gray-100">
+
       <div class="flex flex-col sm:flex-row sm:items-center gap-2">
         <label class="font-bold text-sm text-gray-600">彩色镜头 (RGB)：</label>
-        <select 
-          v-model="selectedRgbId" 
-          :disabled="isStreaming" 
-          class="px-3 py-1.5 rounded border border-gray-300 text-sm min-w-[200px] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:border-blue-500"
-        >
+        <select v-model="selectedRgbId" :disabled="isStreaming"
+          class="px-3 py-1.5 rounded border border-gray-300 text-sm min-w-[200px] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:border-blue-500">
           <option value="">-- 未选择 --</option>
           <option v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
             {{ device.label || '未知摄像头 (' + device.deviceId.substring(0, 5) + '...)' }}
@@ -20,11 +18,8 @@
 
       <div class="flex flex-col sm:flex-row sm:items-center gap-2">
         <label class="font-bold text-sm text-gray-600">红外镜头 (IR)：</label>
-        <select 
-          v-model="selectedIrId" 
-          :disabled="isStreaming" 
-          class="px-3 py-1.5 rounded border border-gray-300 text-sm min-w-[200px] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:border-blue-500"
-        >
+        <select v-model="selectedIrId" :disabled="isStreaming"
+          class="px-3 py-1.5 rounded border border-gray-300 text-sm min-w-[200px] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:border-blue-500">
           <option value="">-- 未选择 --</option>
           <option v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
             {{ device.label || '未知摄像头 (' + device.deviceId.substring(0, 5) + '...)' }}
@@ -33,27 +28,23 @@
       </div>
 
       <div class="flex gap-2.5">
-        <button 
-          :disabled="isStreaming" 
-          @click="handleStartClick" 
-          class="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer"
-        >
+        <button :disabled="isStreaming" @click="handleStartClick"
+          class="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer">
           ▶ {{ videoDevices.length === 0 ? '加载并开启' : '开启' }}
         </button>
-        
-        <button 
-          :disabled="!isStreaming" 
-          @click="stopAllStreams" 
-          class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer"
-        >
+
+        <button :disabled="!isStreaming" @click="stopAllStreams"
+          class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer">
           ⏹ 停止
         </button>
-        
-        <button 
-          :disabled="!isStreaming" 
-          @click="downloadBothPhotos" 
-          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer"
-        >
+
+        <button :disabled="!isStreaming" @click="rotateCamera"
+          class="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer">
+          🔄 旋转 {{ cameraRotateDegree }}°
+        </button>
+
+        <button :disabled="!isStreaming" @click="downloadBothPhotos"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded shadow-sm transition-colors cursor-pointer">
           📥 下载两张照片
         </button>
       </div>
@@ -62,12 +53,14 @@
     <div class="flex gap-5 justify-center">
       <div class="flex-1 bg-black rounded-lg overflow-hidden shadow-md border border-gray-900 flex flex-col">
         <h3 class="text-white bg-gray-800 m-0 p-2 text-sm text-center font-medium">RGB 彩色预览</h3>
-        <video ref="rgbVideoRef" autoplay playsinline muted class="w-full h-auto aspect-[4/3] object-cover bg-gray-950"></video>
+        <video ref="rgbVideoRef" autoplay playsinline muted class="w-full h-auto aspect-[4/3] object-cover bg-gray-950"
+          :style="videoStyle" />
       </div>
-      
+
       <div class="flex-1 bg-black rounded-lg overflow-hidden shadow-md border border-gray-900 flex flex-col">
         <h3 class="text-white bg-gray-800 m-0 p-2 text-sm text-center font-medium">IR 红外预览</h3>
-        <video ref="irVideoRef" autoplay playsinline muted class="w-full h-auto aspect-[4/3] object-cover bg-gray-950"></video>
+        <video ref="irVideoRef" autoplay playsinline muted class="w-full h-auto aspect-[4/3] object-cover bg-gray-950"
+          :style="videoStyle" />
       </div>
     </div>
 
@@ -77,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 
 // --- DOM 引用定义 ---
 const rgbVideoRef = ref<HTMLVideoElement | null>(null);
@@ -91,6 +84,7 @@ const selectedRgbId = ref<string>('');
 const selectedIrId = ref<string>('');
 const isStreaming = ref<boolean>(false);
 const hasRequestedPermission = ref<boolean>(false); // 标记是否已经要过权限
+const cameraRotateDegree = ref(0);
 
 let rgbStream: MediaStream | null = null;
 let irStream: MediaStream | null = null;
@@ -100,7 +94,7 @@ const loadDeviceListOnly = async () => {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     videoDevices.value = devices.filter(device => device.kind === 'videoinput');
-    
+
     // 如果之前已经有权限了（能拿到 label 且不为空），直接自动对准 ID
     if (videoDevices.value.length > 0 && videoDevices.value[0].label) {
       autoDetectCameras();
@@ -116,11 +110,11 @@ const requestPermissionAndLoad = async () => {
     // 唤起权限弹窗，并立刻关闭临时流
     const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
     tempStream.getTracks().forEach(track => track.stop());
-    
+
     // 授权成功后，重新读取设备，此时 label 将不会是空的
     const devices = await navigator.mediaDevices.enumerateDevices();
     videoDevices.value = devices.filter(device => device.kind === 'videoinput');
-    
+
     if (videoDevices.value.length === 0) {
       alert('未检测到任何视频输入设备');
       return false;
@@ -176,6 +170,25 @@ const openCamera = async (deviceId: string, videoElement: HTMLVideoElement | nul
   }
 };
 
+const videoStyle = computed(() => {
+
+  const angle = cameraRotateDegree.value;
+
+  if (angle === 90 || angle === 270) {
+    return {
+      transform: `rotate(${angle}deg)`,
+      width: '133%',
+      height: '133%'
+    }
+  }
+
+  return {
+    transform: `rotate(${angle}deg)`,
+    width: '100%',
+    height: '100%'
+  }
+});
+
 // 5. 【接管点击】开启按钮点击事件
 const handleStartClick = async () => {
   // 如果之前没有获取过权限，或者列表是空的（说明 label 是空的），先拉起权限
@@ -183,7 +196,7 @@ const handleStartClick = async () => {
     const success = await requestPermissionAndLoad();
     if (!success) return;
   }
-  
+
   // 权限 OK 后，直接调用原有的开启逻辑
   await restartCameras();
 };
@@ -203,7 +216,7 @@ const restartCameras = async () => {
   if (selectedIrId.value && irVideoRef.value) {
     irStream = await openCamera(selectedIrId.value, irVideoRef.value);
   }
-  
+
   isStreaming.value = true;
 };
 
@@ -222,15 +235,87 @@ const downloadBothPhotos = () => {
   triggerDownload(irBase64, `FACE_IR_${timestamp}.jpg`);
 };
 
-const drawToCanvas = (video: HTMLVideoElement | null, canvas: HTMLCanvasElement | null): string | null => {
-  if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) return null;
+const rotateCamera = () => {
+  cameraRotateDegree.value += 90;
+
+  if (cameraRotateDegree.value >= 360) {
+    cameraRotateDegree.value = 0;
+  }
+
+  console.log('当前旋转角度:', cameraRotateDegree.value);
+};
+
+const drawToCanvas = (
+  video: HTMLVideoElement | null,
+  canvas: HTMLCanvasElement | null
+): string | null => {
+
+  if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
+    return null;
+  }
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const angle = cameraRotateDegree.value;
+
+
+  // 90/270度需要交换宽高
+  if (angle === 90 || angle === 270) {
+
+    canvas.width = video.videoHeight;
+    canvas.height = video.videoWidth;
+
+  } else {
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+  }
+
+
+  ctx.save();
+
+
+  switch (angle) {
+
+    case 90:
+      // 顺时针90°
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);
+      break;
+
+
+    case 180:
+      ctx.translate(canvas.width, canvas.height);
+      ctx.rotate(Math.PI);
+      break;
+
+
+    case 270:
+      // 顺时针270（逆时针90）
+      ctx.translate(0, canvas.height);
+      ctx.rotate(-Math.PI / 2);
+      break;
+
+
+    default:
+      break;
+  }
+
+
+  ctx.drawImage(
+    video,
+    0,
+    0,
+    video.videoWidth,
+    video.videoHeight
+  );
+
+
+  ctx.restore();
+
 
   return canvas.toDataURL('image/jpeg', 0.9);
 };
@@ -261,12 +346,12 @@ const stopAllStreams = () => {
 };
 
 // 生命周期
-onMounted(() => { 
+onMounted(() => {
   // 进页面只静默获取设备列表
-  loadDeviceListOnly(); 
+  loadDeviceListOnly();
 });
 
-onBeforeUnmount(() => { 
-  stopAllStreams(); 
+onBeforeUnmount(() => {
+  stopAllStreams();
 });
 </script>
