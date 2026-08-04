@@ -1,24 +1,3 @@
-<script setup lang="ts">
-import { useRouter, useRoute } from 'vue-router'
-
-const router = useRouter()
-const route = useRoute() // 用于获取当前路由，实现菜单高亮
-
-// 跳转到 首页/WebSocket 客户端页面
-const goToWebSocket = () => {
-  router.push('/')
-}
-// 跳转到 首页/WebSocket 图片 客户端页面
-const goToImageWebSocket = () => {
-  router.push('/image')
-}
-
-// 跳转到 人脸采集 页面
-const goToFaceCapture = () => {
-  router.push('/faceCapture')
-}
-</script>
-
 <template>
   <div
     class="fixed top-0 left-0 w-full h-16 bg-white/80 backdrop-blur-md shadow-xs z-50 flex items-center justify-center border-b border-gray-100">
@@ -47,11 +26,18 @@ const goToFaceCapture = () => {
           ? 'bg-linear-to-r from-blue-500 to-indigo-500 text-white border-transparent shadow-blue-500/20 shadow-md scale-102'
           : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300'
       ]">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2z" />
-        </svg>
+        <Cpu />
         WebSocket 终端
+      </button>
+
+      <button @click="goToChat" :class="[
+        'px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-300 flex items-center gap-1.5 cursor-pointer shadow-xs border',
+        route.path === '/chat'
+          ? 'bg-linear-to-r from-blue-500 to-indigo-500 text-white border-transparent shadow-blue-500/20 shadow-md scale-102'
+          : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300'
+      ]">
+        <MessageCircleMore />
+        Chat
       </button>
 
       <button @click="goToImageWebSocket" :class="[
@@ -60,10 +46,7 @@ const goToFaceCapture = () => {
           ? 'bg-linear-to-r from-blue-500 to-indigo-500 text-white border-transparent shadow-blue-500/20 shadow-md scale-102'
           : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300'
       ]">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2z" />
-        </svg>
+        <Image />
         WebSocket Image 终端
       </button>
 
@@ -73,10 +56,7 @@ const goToFaceCapture = () => {
           ? 'bg-linear-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-emerald-500/20 shadow-md scale-102'
           : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300'
       ]">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 10h.01M15 10h.01" />
-        </svg>
+        <ScanFace />
         人脸数据采集
       </button>
 
@@ -84,6 +64,31 @@ const goToFaceCapture = () => {
 
   </div>
 </template>
+
+<script setup lang="ts">
+import { useRouter, useRoute } from 'vue-router'
+import { Cpu, ScanFace, Image, MessageCircleMore } from '@lucide/vue';
+
+const router = useRouter()
+const route = useRoute() // 用于获取当前路由，实现菜单高亮
+
+// 跳转到 首页/WebSocket 客户端页面
+const goToWebSocket = () => {
+  router.push('/')
+}
+const goToChat = () => {
+  router.push('/chat')
+}
+// 跳转到 首页/WebSocket 图片 客户端页面
+const goToImageWebSocket = () => {
+  router.push('/image')
+}
+
+// 跳转到 人脸采集 页面
+const goToFaceCapture = () => {
+  router.push('/faceCapture')
+}
+</script>
 
 <script lang="ts">
 export default {

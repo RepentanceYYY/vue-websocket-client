@@ -19,33 +19,47 @@
       </button>
     </div>
 
-    <div class="flex flex-col gap-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100">
-      <div class="flex items-center gap-3">
-        <input type="file" ref="fileInput" accept="image/*" class="hidden" @change="handleFileChange" />
+    <div class="flex items-center gap-3">
+      <!-- 操作类型 -->
+      <select v-model="action"
+        class="w-52 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="">请选择操作</option>
+        <option value="faceRecognition">人脸识别</option>
+        <option value="verifyFaceEligibility">人脸可用性检测</option>
+        <option value="saveFaceImage">人脸采集</option>
+      </select>
 
-        <button @click="fileInput?.click()"
-          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md text-sm font-medium transition-colors">
-          选择图片 (自动转 Base64)
-        </button>
+      <!-- 用户ID -->
+      <input v-model="userId" type="text" placeholder="请输入用户ID"
+        class="w-40 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
 
-        <span class="text-xs text-gray-400 flex-1 truncate">
-          {{ imageName || '暂未选择图片' }}
-        </span>
+      <input type="file" ref="rgbFileInput" accept="image/*" class="hidden" @change="handleFileChange" />
 
-        <button @click="sendMessage" :disabled="!isConnected || !imageBase64"
-          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm disabled:opacity-50">
-          发送
-        </button>
-      </div>
+      <button @click="rgbFileInput?.click()"
+        class="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md text-sm font-medium transition-colors">
+        选择图片 (自动转 Base64)
+      </button>
 
-      <div v-if="imageBase64"
-        class="mt-1 border border-dashed border-gray-200 p-2 rounded-md flex items-center gap-4 bg-gray-50">
-        <img :src="imageBase64" class="w-16 h-16 object-cover rounded-md border" alt="预览" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p class="font-bold text-gray-700">Base64 转换成功</p>
-          <p>字符长度: <span class="text-indigo-600">{{ imageBase64.length }}</span> 字节</p>
-        </div>
-      </div>
+      <span class="text-xs text-gray-400 flex-1 truncate">
+        {{ rgbImageName || '暂未选择图片' }}
+      </span>
+
+
+      <input type="file" ref="irFileInput" accept="image/*" class="hidden" @change="handleIRFileChange" />
+
+      <button @click="irFileInput?.click()"
+        class="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md text-sm font-medium transition-colors">
+        选择图片 (自动转 Base64)
+      </button>
+
+      <span class="text-xs text-gray-400 flex-1 truncate">
+        {{ irImageName || '暂未选择图片' }}
+      </span>
+
+      <button @click="sendMessage" :disabled="!isConnected || !imageBase64 || !action"
+        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm disabled:opacity-50">
+        发送
+      </button>
     </div>
 
     <div
@@ -73,18 +87,23 @@
 
 <script lang="ts" setup>
 import { ref, reactive, nextTick } from "vue";
-import { Loader2, Power, Link, Trash2 } from "lucide-vue-next";
+import { Loader2, Power, Link, Trash2 } from "@lucide/vue";
 import { WebSocketClient } from "@/utils/CabinetWebSocketClient";
 
 // 状态变量
-const wsUrl = ref("ws://localhost:8080/ws/device");
+const wsUrl = ref("ws://localhost:8080/ws/face");
 const isConnected = ref(false);
 const logs = ref<{ time: string; content: string; type: "info" | "err" }[]>([]);
 
 // 图片上传相关的响应式变量
-const fileInput = ref<HTMLInputElement | null>(null);
-const imageName = ref("");
+const rgbFileInput = ref<HTMLInputElement | null>(null);
+const irFileInput = ref<HTMLInputElement | null>(null);
+const rgbImageName = ref("");
 const imageBase64 = ref("");
+const irImageName = ref('');
+const irBase64 = ref("");
+const userId = ref('');
+const action = ref('');
 
 /**
  * 监听图片选择，转为 Base64
@@ -94,18 +113,38 @@ const handleFileChange = (e: Event) => {
   const file = target.files?.[0];
   if (!file) return;
 
-  imageName.value = file.name;
+  rgbImageName.value = file.name;
 
   const reader = new FileReader();
   reader.onload = (event) => {
-    // 获取到的就是带有 data:image/png;base64,... 前缀的完整字符串
     imageBase64.value = event.target?.result as string || "";
     addLog(`📸 图片 [${file.name}] 已转为 Base64`, "info");
   };
   reader.onerror = () => {
     addLog("❌ 图片转 Base64 失败", "err");
   };
-  reader.readAsDataURL(file); // 读取为 DataURL
+  reader.readAsDataURL(file);
+};
+
+/**
+ * 监听图片选择，转为 Base64
+ */
+const handleIRFileChange = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  irImageName.value = file.name;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    irBase64.value = event.target?.result as string || "";
+    addLog(`📸 IR图片 [${file.name}] 已转为 Base64`, "info");
+  };
+  reader.onerror = () => {
+    addLog("❌ IR图片转 Base64 失败", "err");
+  };
+  reader.readAsDataURL(file);
 };
 
 /**
@@ -117,17 +156,45 @@ const sendMessage = () => {
   try {
 
     let fullBase64 = imageBase64.value;
+    let fullIRBase64 = irBase64.value;
 
-    // 举个例子：
-    let payload = {
-      type: "detectFace",
-      data: {
-        faceImage: {
+
+    let payload: any = {};
+
+    if (action.value === 'faceRecognition') {
+      payload = {
+        action: "faceRecognition",
+        requestId: "1008613",
+        data: {
           rgbBase64: fullBase64,
-          irBase64: null
+          silentLivenessEnabled: true,
+          irBase64: fullIRBase64,
         }
       }
-    };
+    } else if (action.value === 'verifyFaceEligibility') {
+      payload = {
+        action: "verifyFaceEligibility",
+        requestId: "1008613",
+        data: {
+          userId: userId.value,
+          rgbBase64: fullBase64
+        }
+      }
+    } else if (action.value === 'saveFaceImage') {
+      payload = {
+        action: "saveFaceImage",
+        requestId: "1008613",
+        data: {
+          userId: userId.value,
+          rgbBase64: fullBase64
+        }
+      }
+    }
+
+
+
+
+
 
     // 执行发送
     client.send(payload);
