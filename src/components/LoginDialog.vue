@@ -1,7 +1,6 @@
 <template>
     <div v-if="authStore.showLoginDialog"
-        class="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9998]"
-        @click.self="closeDialog">
+        class="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9998]">
         <!-- 主容器：尺寸缩小，用 max-w-3xl 替代之前的 max-w-4xl -->
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex overflow-hidden min-h-[480px]">
             <!-- 左侧：品牌展示（比例不变） -->
@@ -18,11 +17,6 @@
 
             <!-- 右侧：登录表单（内边距稍减） -->
             <div class="w-3/5 p-8 relative flex flex-col justify-center">
-                <!-- 关闭按钮 -->
-                <button @click="closeDialog"
-                    class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">
-                    <X class="w-5 h-5" />
-                </button>
 
                 <!-- 过期提示 -->
                 <div v-if="authStore.isTokenExpired"
@@ -38,17 +32,17 @@
                     登录
                 </h2>
 
-                <form @submit.prevent="handleLogin">
+                <form @submit.prevent="handleLogin" novalidate>
                     <div class="mb-4">
+                        <!-- 删除了 required 属性 -->
                         <input v-model="username" type="text" placeholder="用户名"
-                            class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
-                            required />
+                            class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition" />
                     </div>
                     <!-- 密码框：添加眼睛切换 -->
                     <div class="mb-5 relative">
+                        <!-- 删除了 required 属性 -->
                         <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="密码"
-                            class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition pr-10"
-                            required />
+                            class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition pr-10" />
                         <button type="button" @click="showPassword = !showPassword"
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none">
                             <Eye v-if="showPassword" class="w-5 h-5" />
@@ -56,8 +50,13 @@
                         </button>
                     </div>
 
-                    <button type="submit" :disabled="loading"
-                        class="w-full py-2.5 text-sm text-white rounded-lg font-medium transition-all bg-gradient-to-r from-blue-400 to-purple-500 hover:opacity-90 disabled:opacity-50">
+                    <!-- 保持按钮可以被点击（不真正给 HTML disabled），通过样式呈现禁用感，并在点击时弹 Toast -->
+                    <button type="submit" :disabled="loading" :class="[
+                        'w-full py-2.5 text-sm rounded-lg font-medium transition-all shadow-xs',
+                        isFormValid
+                            ? 'text-white bg-gradient-to-r from-blue-400 to-purple-500 hover:opacity-90 cursor-pointer'
+                            : 'text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed opacity-80'
+                    ]">
                         {{ loading ? '登录中...' : '登录' }}
                     </button>
                 </form>
@@ -67,9 +66,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { X, TriangleAlert, Eye, EyeOff } from '@lucide/vue'  // 引入新图标
+import { X, TriangleAlert, Eye, EyeOff } from '@lucide/vue'
 import request from '@/utils/request'
 import { toast } from '@/composables/useToast'
 
@@ -77,13 +76,27 @@ const authStore = useAuthStore()
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
-const showPassword = ref(false)   // 控制密码可见性
+const showPassword = ref(false)
 
-const closeDialog = () => {
-    authStore.closeLoginDialog()
-}
+// 计算表单是否已有效填写
+const isFormValid = computed(() => {
+    return username.value.trim().length > 0 && password.value.trim().length > 0
+})
 
 const handleLogin = async () => {
+    // 阻止重复提交
+    if (loading.value) return
+
+    // 如果未填写完整，点击时弹出 toast 提示
+    if (!username.value.trim()) {
+        toast.show('请输入用户名', 'error')
+        return
+    }
+    if (!password.value.trim()) {
+        toast.show('请输入密码', 'error')
+        return
+    }
+
     loading.value = true
     try {
         const res: any = await request.post('/auth/login', {
@@ -134,5 +147,20 @@ const handleLogin = async () => {
 
 .animate-slide-right {
     animation: slideInRight 0.6s ease-out both;
+}
+
+/* 隐藏 Edge/IE 浏览器原生的密码显示图标 */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
+/* 隐藏 Webkit (Chrome/Safari/Edge) 浏览器原生的密码/清除功能 */
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
 }
 </style>

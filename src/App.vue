@@ -2,17 +2,21 @@
   <!-- 顶部标题栏（含菜单） -->
   <div
     class="fixed top-0 left-0 w-full h-16 bg-white/80 backdrop-blur-md shadow-xs z-50 flex items-center justify-between px-4 border-b border-gray-100 relative">
-    
-    <!-- 中间区域：标题 + 版权信息（改为绝对定位居中，不占位，不随菜单挤压） -->
-    <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 pointer-events-none z-0">
+
+    <!-- 左侧区域：标题 + 版权信息（靠左排列） -->
+    <div class="flex items-center gap-3 z-10 shrink-0">
       <h1
-        class="text-2xl sm:text-3xl pb-1 font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent pointer-events-auto">
+        class="text-2xl sm:text-3xl pb-1 font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
         scenery
       </h1>
+      <span
+        class="text-xs text-gray-400 font-medium select-none border-l border-gray-200 pl-3 py-0.5 hidden sm:inline-block">
+        © 2026 alice-scenery. All rights reserved.
+      </span>
     </div>
 
-    <!-- 右侧：菜单按钮 + 展开菜单项（保持靠右，设置更高的 z-index 覆盖中间内容） -->
-    <div class="flex items-center gap-2 ml-auto relative z-10">
+    <!-- 右侧：菜单按钮 + 展开菜单项（保持靠右） -->
+    <div class="flex items-center gap-2 ml-auto relative z-10 overflow-hidden">
       <!-- 菜单项列表（胶囊式，从右往左展开） -->
       <Transition name="menu-slide">
         <div v-if="menuOpen" class="flex items-center gap-1.5 overflow-hidden" style="white-space: nowrap;">
@@ -32,8 +36,8 @@
       </Transition>
 
       <!-- 菜单展开/收起按钮（图标切换） -->
-      <button @click="toggleMenu" class="p-2 rounded-full hover:bg-gray-100 transition-colors focus:outline-none"
-        aria-label="切换菜单">
+      <button @click="toggleMenu"
+        class="p-2 rounded-full hover:bg-gray-100 transition-colors focus:outline-none shrink-0" aria-label="切换菜单">
         <component :is="menuOpen ? ListCollapse : Menu" class="w-5 h-5 text-gray-600" />
       </button>
     </div>
@@ -60,9 +64,10 @@ interface NavItem {
   icon: Component
 }
 
+// Chat 已调整至第一位
 const navItems: NavItem[] = [
-  { path: '/', label: 'WebSocket 终端', icon: Cpu },
-  { path: '/chat', label: 'Chat', icon: MessageCircleMore },
+  { path: '/', label: 'Chat', icon: MessageCircleMore },
+  { path: '/terminal', label: 'WebSocket 终端', icon: Cpu },
   { path: '/image', label: 'WebSocket Image 终端', icon: Image },
   { path: '/faceCapture', label: '人脸数据采集', icon: ScanFace },
 ]

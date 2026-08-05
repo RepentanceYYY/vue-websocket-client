@@ -1,37 +1,50 @@
 <template>
     <div class="relative flex h-full w-full bg-gray-50/30 text-gray-700 min-h-0 overflow-hidden">
-        <!-- 左侧会话菜单栏 -->
+
+        <!-- 左侧会话菜单栏（不变） -->
         <aside class="w-64 bg-white border-r border-gray-200/60 flex flex-col shrink-0">
             <!-- 顶部新建按钮 -->
             <div class="p-4 border-b border-gray-100">
                 <button @click="startNewChat"
-                    class="w-full h-10 px-4 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-xs">
+                    class="w-full h-10 px-4 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 text-white rounded-lg text-sm font-medium transition-all shadow-xs">
                     <Plus class="w-4 h-4" />
                     <span>新建聊天</span>
                 </button>
             </div>
             <!-- 会话历史列表（滚动区域） -->
             <div class="flex-1 overflow-y-auto p-2 space-y-1">
-                <div v-for="session in sessionList" :key="session.sessionId" @click="selectSession(session)"
-                    class="group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-colors"
-                    :class="sessionId === session.sessionId ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-600 hover:bg-gray-100/80'">
-                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                        <MessageSquare class="w-4 h-4 shrink-0 text-gray-400 group-hover:text-indigo-500"
-                            :class="{ 'text-indigo-600': sessionId === session.sessionId }" />
-                        <span class="truncate">{{ session.title || session.sessionId }}</span>
-                    </div>
-                    <button @click.stop="deleteSession(session.sessionId)"
-                        class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all"
-                        title="删除会话">
-                        <Trash2 class="w-3.5 h-3.5" />
-                    </button>
+                <!-- 1. 加载中状态（Spinner） -->
+                <div v-if="sessionLoding"
+                    class="py-12 flex flex-col items-center justify-center gap-2 text-xs text-gray-400 select-none">
+                    <Loader2 class="w-5 h-5 animate-spin text-indigo-500" />
+                    <span>加载中...</span>
                 </div>
-                <div v-if="sessionList.length === 0" class="py-8 text-center text-xs text-gray-400 select-none">
+
+                <!-- 2. 会话列表展示 -->
+                <template v-else-if="sessionList.length > 0">
+                    <div v-for="session in sessionList" :key="session.sessionId" @click="selectSession(session)"
+                        class="group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-colors"
+                        :class="sessionId === session.sessionId ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-600 hover:bg-gray-100/80'">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <MessageSquare class="w-4 h-4 shrink-0 text-gray-400 group-hover:text-indigo-500"
+                                :class="{ 'text-indigo-600': sessionId === session.sessionId }" />
+                            <span class="truncate">{{ session.title || session.sessionId }}</span>
+                        </div>
+                        <button @click.stop="deleteSession(session.sessionId)"
+                            class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all"
+                            title="删除会话">
+                            <Trash2 class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </template>
+
+                <!-- 3. 无数据提示 -->
+                <div v-else class="py-8 text-center text-xs text-gray-400 select-none">
                     暂无历史会话
                 </div>
             </div>
 
-            <!-- 用户信息卡片 -->
+            <!-- 用户信息卡片（不变） -->
             <div v-if="authStore.isLoggedIn" class="border-t border-gray-100 p-3 flex items-center justify-between">
                 <div class="flex items-center gap-2.5 min-w-0">
                     <div
@@ -40,7 +53,7 @@
                     </div>
                     <span class="text-sm font-medium text-gray-700 truncate">{{ authStore.nickname || '用户' }}</span>
                 </div>
-                <button class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                <button @click="handleUserInfo" class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
                     <MoreHorizontal class="w-4 h-4" />
                 </button>
             </div>
@@ -48,79 +61,71 @@
 
         <!-- 右侧主对话界面 -->
         <main class="flex-1 flex flex-col h-full min-w-0 min-h-0 bg-white">
-            <!-- 聊天内容区域 -->
-            <div ref="chatContainer" class="flex-1 overflow-y-auto px-4 py-6 min-h-0 select-text">
-                <!-- 限制与底部输入框同宽 (max-w-4xl mx-auto) -->
+            <div ref="chatContainer" class="flex-1 overflow-y-auto px-4 py-6 min-h-0 select-text flex flex-col"
+                :class="{ 'justify-center items-center': messages.length === 0 }">
+
                 <div class="max-w-4xl mx-auto w-full space-y-6">
 
                     <!-- 空白状态 -->
-                    <div v-if="messages.length === 0" class="h-full py-20 flex items-center justify-center select-none">
+                    <div v-if="messages.length === 0" class="text-center select-none py-6">
                         <Transition appear name="fade-up">
-                            <h2 class="text-2xl font-medium text-gray-700/80 tracking-wide">
-                                你好，我是 Lisa，有什么我可以帮您的吗？
+                            <h2 class="text-2xl sm:text-3xl font-medium text-gray-700/80 tracking-wide">
+                                {{ authStore.ipInfo?.address ? `好久不见，你在${authStore.ipInfo.address}过得怎么样？` :
+                                    "你好，我是Lisa，你最近过得还好吗？"
+                                }}
                             </h2>
                         </Transition>
                     </div>
 
-                    <!-- 消息列表 -->
+                    <!-- ========== 消息列表 ========== -->
                     <template v-for="(msg, index) in messages" :key="index">
-
-                        <!-- 用户消息：靠右、带气泡、无顶部角色名 -->
+                        <!-- 用户消息 -->
                         <div v-if="msg.role === 'user'" class="flex justify-end">
-    <div
-        class="max-w-[80%] bg-purple-400 text-white rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-xs">
-        {{ msg.content }}
-    </div>
-</div>
-
-                        <!-- AI 消息：靠左、Gemini 式极简文本（带流式输出/思考状态判断） -->
-                        <div v-else class="flex justify-start">
-                            <div class="max-w-[85%] text-sm leading-relaxed text-gray-800 whitespace-pre-wrap py-1">
-
-                                <!-- 场景A：思考中（内容为空且处于加载状态） -->
-                                <div v-if="loading && msg.content === ''"
-                                    class="flex items-center gap-2 text-gray-400 select-none py-1">
-                                    <span class="flex gap-1 items-center">
-                                        <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                                        <span
-                                            class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse [animation-delay:200ms]"></span>
-                                        <span
-                                            class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse [animation-delay:400ms]"></span>
-                                    </span>
-                                    <span class="text-xs font-medium text-gray-500">思考中...</span>
-                                </div>
-
-                                <!-- 场景B：正常内容显示 -->
-                                <div v-else class="text-gray-800">
-                                    {{ msg.content }}
-                                </div>
-
+                            <div
+                                class="max-w-[80%] bg-purple-400 text-white rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-xs">
+                                {{ msg.content }}
                             </div>
                         </div>
 
+                        <!-- AI 消息 -->
+                        <div v-else class="flex justify-start">
+                            <div class="max-w-[85%] text-sm leading-relaxed text-gray-800 py-1">
+
+                                <div v-if="loading && msg.content === ''" class="flex items-center gap-2 text-gray-400">
+                                    <span>思考中...</span>
+                                </div>
+
+
+                                <!-- 流式文本 -->
+                                <div v-else-if="loading && msg.role === 'assistant'" class="whitespace-pre-wrap">
+                                    {{ msg.content }}
+                                </div>
+
+
+                                <!-- 完成后的markdown -->
+                                <div v-else class="markdown-body" v-html="renderMarkdown(msg.content)" />
+
+                            </div>
+                        </div>
                     </template>
                 </div>
             </div>
 
-            <!-- ========== 输入区域 ========== -->
+            <!-- 输入区域（不变） -->
             <div class="p-4 pt-0 shrink-0 max-w-4xl mx-auto w-full">
                 <div
                     class="relative bg-gray-50/80 hover:bg-white focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 border border-gray-200/90 rounded-[26px] shadow-sm transition-all duration-200 flex items-center p-1.5 pr-2">
-                    <!-- 多行文本输入框 -->
-                    <textarea ref="textareaRef" v-model="input" rows="1" placeholder="输入消息... (Enter发送，Shift+Enter换行)"
-                        class="resize-none flex-1 px-4 py-2.5 bg-transparent border-none outline-none text-sm text-gray-800 leading-5 overflow-y-auto placeholder:text-gray-400"
+                    <textarea ref="textareaRef" v-model="input" rows="1" placeholder="有问题，尽管问"
+                        class="resize-none flex-1 px-4 py-2.5 bg-transparent border-none outline-none text-gray-800 leading-5 overflow-y-auto placeholder:text-gray-400"
                         :style="{ height: textareaHeight + 'px' }" @input="adjustTextareaHeight"
                         @keydown.enter.exact.prevent="send" />
 
-                    <!-- 右侧内嵌按钮区域 -->
                     <div class="flex items-center shrink-0">
-                        <!-- 停止生成按钮 -->
                         <button v-if="loading" @click="stop"
                             class="w-8 h-8 flex items-center justify-center bg-rose-500 hover:bg-rose-600 active:scale-95 text-white rounded-full transition-all shadow-xs"
                             title="停止生成">
                             <Square class="w-3.5 h-3.5 fill-current" />
                         </button>
-                        <!-- 发送按钮 -->
                         <button v-else @click="send" :disabled="!input.trim()"
                             class="w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-30 disabled:hover:bg-indigo-600 disabled:active:scale-100 text-white rounded-full transition-all shadow-xs"
                             title="发送消息">
@@ -142,9 +147,54 @@ import { User, Bot, Send, Square, Plus, MessageSquare, Trash2, ArrowUp, MoreHori
 import request from '@/utils/request'
 import LoginDialog from '@/components/LoginDialog.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
-import { useAuthStore } from '@/stores/auth'   // 引入 auth store
+import { toast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
+import MarkdownIt from 'markdown-it'
+import type { MarkdownIt as MarkdownItType } from 'markdown-it'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github-dark.css'
 
-const authStore = useAuthStore()  // 使用 store
+// ---------- 初始化 markdown-it ----------
+
+const md: MarkdownItType = new MarkdownIt({
+    html: false,
+    linkify: true,
+    breaks: true,
+    typographer: true,
+
+    highlight: (str: string, lang: string): string => {
+
+        if (lang && hljs.getLanguage(lang)) {
+            try {
+                return `<code class="hljs">${hljs.highlight(str, {
+                    language: lang,
+                    ignoreIllegals: true
+                }).value
+                    }</code>`
+            } catch (e) {
+                console.error(e)
+            }
+        }
+
+        return `<code class="hljs">${str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+            }</code>`
+    }
+})
+
+// 渲染函数（直接暴露给模板）
+const renderMarkdown = (content: string): string => {
+    if (!content) return ''
+    // 如果后端传的 \n 被转义，还原
+    const formatted = content.replace(/\\n/g, '\n')
+    const result = md.render(formatted)
+    console.log('渲染Markdown，长度:', result.length) // 调试日志，确认调用
+    return result
+}
+
+const authStore = useAuthStore()
 
 interface Message {
     role: "user" | "assistant";
@@ -163,185 +213,186 @@ interface AiChatSession {
     updateTime?: string;
 }
 
-const sessionId = ref("");
-const input = ref("");
-const loading = ref(false);
-const messages = ref<Message[]>([]);
-const sessionList = ref<AiChatSession[]>([]);
-const chatContainer = ref<HTMLDivElement | null>(null);
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
-const isMultiLine = ref(false);
-const textareaHeight = ref(40);
-let abortController: AbortController | null = null;
+const sessionId = ref("")
+const input = ref("")
+const loading = ref(false)
+const messages = ref<Message[]>([])
+const sessionList = ref<AiChatSession[]>([])
+const chatContainer = ref<HTMLDivElement | null>(null)
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const isMultiLine = ref(false)
+const textareaHeight = ref(40)
+let abortController: AbortController | null = null
+const sessionLoding = ref(true)
 
 onMounted(() => {
-    fetchSessionList();
-});
+    fetchSessionList()
+})
+
+const handleUserInfo = ()=>{
+    toast.show('用户信息功能开发中...','warning')
+}
 
 const fetchSessionList = async () => {
     try {
-        const res = await request.get("/ai/session/list");
-        const result = res.data;
-        if (result.code === 200 || result.success) {
-            sessionList.value = result.data || [];
-        }
+        sessionLoding.value = true
+        const res = await request.get("/ai/session/list")
+        sessionList.value = res.data || []
     } catch (error) {
-        console.error("获取会话列表失败:", error);
+        console.error("获取会话列表失败:", error)
+    } finally {
+        sessionLoding.value = false
     }
-};
+}
 
 const startNewChat = () => {
-    sessionId.value = "";
-    messages.value = [];
-    fetchSessionList();
-};
+    sessionId.value = ""
+    messages.value = []
+    fetchSessionList()
+}
 
 const selectSession = (session: AiChatSession) => {
-    sessionId.value = session.sessionId;
-};
+    // sessionId.value = session.sessionId
+    toast.show('查看历史功能开发中...')
+}
 
 const deleteSession = async (targetSessionId: string) => {
     try {
-        const res = await request.delete(`/ai/session/delete/${targetSessionId}`);
-        const result = res.data;
-        if (result.code === 200 || result.success) {
-            if (sessionId.value === targetSessionId) {
-                startNewChat();
-            } else {
-                fetchSessionList();
-            }
+        await request.delete(`/ai/session/delete/${targetSessionId}`)
+        if (sessionId.value === targetSessionId) {
+            startNewChat()
+        } else {
+            fetchSessionList()
         }
-    } catch (error) {
-        console.error("删除会话失败:", error);
+    } catch (error: any) {
+        toast.show(error.message, 'error')
+        console.error("删除会话失败:", error)
     }
-};
-
-const createNewSession = async (): Promise<string | null> => {
-    try {
-        const res = await request.post("/ai/session/create");
-        const newSessionId = res.data;
-        return newSessionId;
-    } catch (error) {
-        console.error("创建新会话失败:", error);
-    }
-    return null;
-};
+}
 
 const adjustTextareaHeight = () => {
-    const el = textareaRef.value;
-    if (!el) return;
-
-    el.style.height = 'auto';
-    const lineHeight = 20;
-    const padding = 20;
-    const singleHeight = 40;
-    const maxHeight = lineHeight * 5 + padding;
-    const scrollHeight = el.scrollHeight;
-    const newHeight = Math.min(Math.max(scrollHeight, singleHeight), maxHeight);
-    textareaHeight.value = newHeight;
-    el.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
-};
+    const el = textareaRef.value
+    if (!el) return
+    el.style.height = 'auto'
+    const lineHeight = 20
+    const padding = 20
+    const singleHeight = 40
+    const maxHeight = lineHeight * 5 + padding
+    const scrollHeight = el.scrollHeight
+    const newHeight = Math.min(Math.max(scrollHeight, singleHeight), maxHeight)
+    textareaHeight.value = newHeight
+    el.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden'
+}
 
 const send = async () => {
-    if (!input.value.trim() || loading.value) return;
-    if (!sessionId.value) {
-        const newId = await createNewSession();
-        if (newId) {
-            sessionId.value = newId;
-            fetchSessionList();
-        } else {
-            return;
-        }
-    }
-    const text = input.value;
-    input.value = "";
-    isMultiLine.value = false;
-    textareaHeight.value = 40;
-    messages.value.push({ role: "user", content: text });
-    const aiMsg: Message = { role: "assistant", content: "" };
-    messages.value.push(aiMsg);
-    loading.value = true;
-    await scrollBottom();
-    abortController = new AbortController();
+    if (!input.value.trim() || loading.value) return
+
+    const text = input.value
+    input.value = ""
+    isMultiLine.value = false
+    textareaHeight.value = 40
+    messages.value.push({ role: "user", content: text })
+
+    const aiMsg: Message = { role: "assistant", content: "" }
+    messages.value.push(aiMsg)
+    loading.value = true
+    await scrollBottom()
+
+    abortController = new AbortController()
     try {
         const response = await fetch(`${import.meta.env.VITE_CHAT_API_BASE_URL}/ai/chat/stream`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authStore.token}` },
             body: JSON.stringify({
-                sessionId: sessionId.value,
+                sessionId: sessionId.value || null,
                 message: text,
             }),
             signal: abortController.signal,
-        });
+        })
+
         if (!response.ok) {
-            throw new Error(`请求失败:${response.status}`);
+            throw new Error(`请求失败:${response.status}`)
         }
         if (!response.body) {
-            throw new Error("浏览器不支持流式响应");
+            throw new Error("浏览器不支持流式响应")
         }
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder("utf-8")
+        let buffer = ""
+
         while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const events = buffer.split("\n\n");
-            buffer = events.pop() || "";
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const events = buffer.split("\n\n")
+            buffer = events.pop() || ""
+
             for (const event of events) {
-                let eventName = "";
-                let data = "";
-                const lines = event.split("\n");
+                let eventName = ""
+                let data = ""
+                const lines = event.split("\n")
                 for (const line of lines) {
                     if (line.startsWith("event:")) {
-                        eventName = line.substring(6).trim();
+                        eventName = line.substring(6).trim()
                     }
                     if (line.startsWith("data:")) {
-                        data = line.substring(5).trim();
+                        data = line.substring(5).trim()
                     }
                 }
-                if (eventName === "done") {
-                    console.log("SSE完成");
-                    break;
+
+                if (eventName === "session_created" && data) {
+                    console.log("收到新会话ID:", data)
+                    sessionId.value = data
+                    fetchSessionList()
                 }
+
+                if (eventName === "done") {
+                    console.log("SSE完成")
+                    break
+                }
+
                 if (eventName === "message" && data) {
-                    aiMsg.content += data;
-                    scrollBottom();
+                    aiMsg.content += data
+                    // 由于我们使用了 :key="msg.content.length"，每次 content 变化都会重新渲染
+                    await scrollBottom()
                 }
             }
         }
     } catch (e: any) {
         if (e.name === "AbortError") {
-            console.log("用户停止生成");
+            console.log("用户停止生成")
         } else {
-            console.error("SSE请求失败:", e);
-            aiMsg.content += "\n\n❌ 请求失败:" + e.message;
+            console.error("SSE请求失败:", e)
+            aiMsg.content += "\n\n❌ 请求失败:" + e.message
         }
     } finally {
-        loading.value = false;
-        abortController = null;
-        await scrollBottom();
+        loading.value = false
+        abortController = null
+        await scrollBottom()
     }
-};
+}
 
 const stop = () => {
     if (abortController) {
-        abortController.abort();
-        abortController = null;
+        abortController.abort()
+        abortController = null
     }
-    loading.value = false;
-};
+    loading.value = false
+}
 
 const scrollBottom = async () => {
-    await nextTick();
-    const el = chatContainer.value;
+    await nextTick()
+    const el = chatContainer.value
     if (el) {
-        el.scrollTop = el.scrollHeight;
+        el.scrollTop = el.scrollHeight
     }
-};
+}
 </script>
 
 <style scoped>
+/* 滚动条样式 */
 div::-webkit-scrollbar,
 textarea::-webkit-scrollbar {
     width: 5px;
@@ -370,5 +421,147 @@ textarea::-webkit-scrollbar-track {
 .fade-up-enter-to {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* ===== Markdown 富文本样式（穿透 scoped） ===== */
+:deep(.markdown-body) {
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: #374151;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+:deep(.markdown-body p) {
+    margin-bottom: 0.75rem;
+}
+
+:deep(.markdown-body p:last-child) {
+    margin-bottom: 0;
+}
+
+:deep(.markdown-body h1),
+:deep(.markdown-body h2),
+:deep(.markdown-body h3),
+:deep(.markdown-body h4) {
+    font-weight: 700;
+    color: #111827;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+:deep(.markdown-body h1) {
+    font-size: 1.25rem;
+}
+
+:deep(.markdown-body h2) {
+    font-size: 1.125rem;
+}
+
+:deep(.markdown-body h3) {
+    font-size: 1rem;
+}
+
+:deep(.markdown-body ul) {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+:deep(.markdown-body ol) {
+    list-style-type: decimal;
+    padding-left: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+:deep(.markdown-body li) {
+    margin-bottom: 0.25rem;
+}
+
+:deep(.markdown-body :not(pre) > code) {
+    background-color: #f3f4f6;
+    color: #ef4444;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+    font-family: monospace;
+}
+
+:deep(.markdown-body pre.hljs) {
+    background-color: #1e1e2e !important;
+    color: #cdd6f4 !important;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    max-width: 100%;
+    box-sizing: border-box;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-x: auto;
+}
+
+:deep(.markdown-body pre.hljs code) {
+    font-family: inherit;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+}
+
+:deep(.markdown-body blockquote) {
+    border-left: 4px solid #818cf8;
+    padding-left: 1rem;
+    color: #6b7280;
+    font-style: italic;
+    margin: 0.75rem 0;
+}
+
+:deep(.markdown-body table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.75rem;
+}
+
+:deep(.markdown-body th),
+:deep(.markdown-body td) {
+    border: 1px solid #e5e7eb;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+}
+
+:deep(.markdown-body th) {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
+
+:deep(.markdown-body > *:first-child) {
+    margin-top: 0;
+}
+
+:deep(.markdown-body > *:last-child) {
+    margin-bottom: 0;
+}
+
+:deep(.markdown-body strong) {
+    font-weight: 700;
+    color: #111827;
+}
+
+:deep(.markdown-body a) {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+:deep(.markdown-body hr) {
+    border-top: 1px solid #e5e7eb;
+    margin: 1rem 0;
+}
+
+:deep(.markdown-body img) {
+    max-width: 100%;
+    border-radius: 8px;
 }
 </style>
