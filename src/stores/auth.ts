@@ -26,6 +26,7 @@ interface LoginData {
 export const useAuthStore = defineStore('authStore', () => {
 
     const showLoginDialog = ref(false)
+    const showRegisterDialog = ref(false)
     const isTokenExpired = ref(false)
     const token = ref<string | null>(sessionStorage.getItem('token'))
     const userId = ref<number | null>(
@@ -66,12 +67,25 @@ export const useAuthStore = defineStore('authStore', () => {
 
     const openLoginDialog = (expired: boolean = false) => {
         showLoginDialog.value = true
+        showRegisterDialog.value = false
         isTokenExpired.value = expired
     }
+
 
     const closeLoginDialog = () => {
         showLoginDialog.value = false
         isTokenExpired.value = false
+    }
+
+
+    const openRegisterDialog = () => {
+        showRegisterDialog.value = true
+        showLoginDialog.value = false
+    }
+
+
+    const closeRegisterDialog = () => {
+        showRegisterDialog.value = false
     }
 
     // ---------- 方法 ----------
@@ -89,6 +103,7 @@ export const useAuthStore = defineStore('authStore', () => {
         loginTime.value = time || new Date().toISOString()
 
         showLoginDialog.value = false
+        showRegisterDialog.value = false
         isTokenExpired.value = false
 
         // 持久化到 sessionStorage
@@ -112,14 +127,11 @@ export const useAuthStore = defineStore('authStore', () => {
         loginTime.value = null
 
         showLoginDialog.value = false
+        showRegisterDialog.value = false
         isTokenExpired.value = false
 
-        // 清空所有 sessionStorage（或只清除本应用使用的键）
+        // 清空所有 sessionStorage
         sessionStorage.clear()
-        // 若担心清除其他数据，可逐个移除：
-        // sessionStorage.removeItem('token')
-        // sessionStorage.removeItem('userId')
-        // ...
     }
 
     return {
@@ -131,17 +143,20 @@ export const useAuthStore = defineStore('authStore', () => {
         ipInfo,
         loginTime,
         showLoginDialog,
+        showRegisterDialog,
         isTokenExpired,
         // 计算属性
         isLoggedIn,
         userAvatar,
         currentUser,
         loginIp,
-        location,        
+        location,
         // 方法
         setLoginInfo,
         logout,
         openLoginDialog,
         closeLoginDialog,
+        openRegisterDialog,
+        closeRegisterDialog,
     }
 })

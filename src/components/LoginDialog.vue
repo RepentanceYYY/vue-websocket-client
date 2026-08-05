@@ -59,6 +59,15 @@
                     ]">
                         {{ loading ? '登录中...' : '登录' }}
                     </button>
+                    <!-- 注册入口 -->
+                    <div class="mt-4 text-center text-sm text-gray-500">
+                        没有账号？
+                        <button type="button" @click="authStore.openRegisterDialog()"
+                            class="text-blue-500 hover:text-blue-600 transition-colors">
+                            立即注册
+                        </button>
+
+                    </div>
                 </form>
             </div>
         </div>

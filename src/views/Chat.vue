@@ -137,6 +137,7 @@
         </main>
 
         <LoginDialog />
+        <RegisterDialog />
         <ToastContainer />
     </div>
 </template>
@@ -153,6 +154,7 @@ import MarkdownIt from 'markdown-it'
 import type { MarkdownIt as MarkdownItType } from 'markdown-it'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
+import RegisterDialog from "@/components/RegisterDialog.vue";
 
 // ---------- 初始化 markdown-it ----------
 
