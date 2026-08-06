@@ -1,8 +1,8 @@
 <template>
     <div class="relative flex h-full w-full bg-gray-50/30 text-gray-700 min-h-0 overflow-hidden">
 
-        <!-- 左侧会话菜单栏（不变） -->
-        <aside class="w-64 bg-white border-r border-gray-200/60 flex flex-col shrink-0">
+        <!-- 左侧会话菜单栏 - 仅在登录后显示 -->
+        <aside v-if="authStore.isLoggedIn" class="w-64 bg-white border-r border-gray-200/60 flex flex-col shrink-0">
             <!-- 顶部新建按钮 -->
             <div class="p-4 border-b border-gray-100">
                 <button @click="startNewChat"
@@ -14,23 +14,24 @@
             <!-- 会话历史列表（滚动区域） -->
             <div class="flex-1 overflow-y-auto p-2 space-y-1">
                 <!-- 1. 加载中状态（Spinner） -->
-                <div v-if="sessionLoding"
+                <div v-if="sessionStore.sessionLoding"
                     class="py-12 flex flex-col items-center justify-center gap-2 text-xs text-gray-400 select-none">
                     <Loader2 class="w-5 h-5 animate-spin text-indigo-500" />
                     <span>加载中...</span>
                 </div>
 
                 <!-- 2. 会话列表展示 -->
-                <template v-else-if="sessionList.length > 0">
-                    <div v-for="session in sessionList" :key="session.sessionId" @click="selectSession(session)"
+                <template v-else-if="sessionStore.sessionList.length > 0">
+                    <div v-for="session in sessionStore.sessionList" :key="session.sessionId"
+                        @click="selectSession(session)"
                         class="group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-colors"
-                        :class="sessionId === session.sessionId ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-600 hover:bg-gray-100/80'">
+                        :class="currentSessionId === session.sessionId ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-600 hover:bg-gray-100/80'">
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
                             <MessageSquare class="w-4 h-4 shrink-0 text-gray-400 group-hover:text-indigo-500"
-                                :class="{ 'text-indigo-600': sessionId === session.sessionId }" />
+                                :class="{ 'text-indigo-600': currentSessionId === session.sessionId }" />
                             <span class="truncate">{{ session.title || session.sessionId }}</span>
                         </div>
-                        <button @click.stop="deleteSession(session.sessionId)"
+                        <button @click.stop="handleDeleteSession(session.sessionId)"
                             class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all"
                             title="删除会话">
                             <Trash2 class="w-3.5 h-3.5" />
@@ -44,8 +45,10 @@
                 </div>
             </div>
 
-            <!-- 用户信息卡片（不变） -->
-            <div v-if="authStore.isLoggedIn" class="border-t border-gray-100 p-3 flex items-center justify-between">
+            <!-- 用户信息卡片 -->
+            <div v-if="authStore.isLoggedIn" ref="userCardRef"
+                class="border-t border-gray-100 p-3 flex items-center justify-between relative cursor-pointer"
+                @click="toggleUserMenu">
                 <div class="flex items-center gap-2.5 min-w-0">
                     <div
                         class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-semibold shrink-0">
@@ -53,9 +56,25 @@
                     </div>
                     <span class="text-sm font-medium text-gray-700 truncate">{{ authStore.nickname || '用户' }}</span>
                 </div>
-                <button @click="handleUserInfo" class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+
+                <!-- 右侧三个点图标（无事件，点击会冒泡到父级触发菜单） -->
+                <div class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
                     <MoreHorizontal class="w-4 h-4" />
-                </button>
+                </div>
+
+                <!-- 弹出菜单（绝对定位在卡片上方） -->
+                <div v-if="showUserMenu"
+                    class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200/60 py-1 z-20"
+                    @click.stop>
+                    <div class="px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 cursor-pointer transition-colors"
+                        @click="handleProfile">
+                        我的个人资料
+                    </div>
+                    <div class="px-4 py-2 hover:bg-gray-50 text-sm text-rose-600 cursor-pointer transition-colors"
+                        @click="handleLogout">
+                        退出
+                    </div>
+                </div>
             </div>
         </aside>
 
@@ -111,7 +130,7 @@
                 </div>
             </div>
 
-            <!-- 输入区域（不变） -->
+            <!-- 输入区域 -->
             <div class="p-4 pt-0 shrink-0 max-w-4xl mx-auto w-full">
                 <div
                     class="relative bg-gray-50/80 hover:bg-white focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 border border-gray-200/90 rounded-[26px] shadow-sm transition-all duration-200 flex items-center p-1.5 pr-2">
@@ -143,18 +162,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from "vue";
-import { User, Bot, Send, Square, Plus, MessageSquare, Trash2, ArrowUp, MoreHorizontal } from "@lucide/vue";
+import { ref, onMounted, nextTick, onBeforeUnmount } from "vue";
+import { User, Bot, Send, Square, Plus, MessageSquare, Trash2, ArrowUp, MoreHorizontal,Loader2 } from "@lucide/vue";
 import request from '@/utils/request'
 import LoginDialog from '@/components/LoginDialog.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 import { toast } from '@/composables/useToast'
+import { useSessionStore } from '@/stores/sessionStore'
 import { useAuthStore } from '@/stores/auth'
+import { type IAiChatSession, type IMessage } from '@/types/twinbrain'
 import MarkdownIt from 'markdown-it'
 import type { MarkdownIt as MarkdownItType } from 'markdown-it'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
 import RegisterDialog from "@/components/RegisterDialog.vue";
+
+// ---------- 用户菜单 ----------
+// 菜单显示状态
+const showUserMenu = ref(false)
+// 卡片 DOM 引用（用于点击外部关闭）
+const userCardRef = ref<HTMLElement | null>(null)
+
+// 切换菜单
+function toggleUserMenu() {
+    showUserMenu.value = !showUserMenu.value
+}
+
+// 处理“我的个人资料”
+function handleProfile() {
+    toast.show('个人资料功能开发中...', 'info')
+    showUserMenu.value = false
+}
+
+// 处理“退出”
+function handleLogout() {
+    authStore.logout()
+    toast.show('已退出登录', 'success')
+    showUserMenu.value = false
+    // 可选：清空当前会话和消息，让界面回到未登录状态
+    messages.value = []
+    currentSessionId.value = ''
+    // 如果有路由跳转，可在此添加
+}
+
+// 点击卡片外部关闭菜单
+function handleClickOutside(event: MouseEvent) {
+    if (!showUserMenu.value) return
+    if (userCardRef.value && !userCardRef.value.contains(event.target as Node)) {
+        showUserMenu.value = false
+    }
+}
 
 // ---------- 初始化 markdown-it ----------
 
@@ -179,9 +236,9 @@ const md: MarkdownItType = new MarkdownIt({
         }
 
         return `<code class="hljs">${str
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
             }</code>`
     }
 })
@@ -197,78 +254,45 @@ const renderMarkdown = (content: string): string => {
 }
 
 const authStore = useAuthStore()
+const sessionStore = useSessionStore()
 
-interface Message {
-    role: "user" | "assistant";
-    content: string;
-}
 
-interface AiChatSession {
-    id?: number;
-    sessionId: string;
-    userId?: number;
-    title?: string;
-    summary?: string;
-    systemPrompt?: string;
-    model?: string;
-    createTime?: string;
-    updateTime?: string;
-}
-
-const sessionId = ref("")
+const currentSessionId = ref("")
 const input = ref("")
 const loading = ref(false)
-const messages = ref<Message[]>([])
-const sessionList = ref<AiChatSession[]>([])
+const messages = ref<IMessage[]>([])
 const chatContainer = ref<HTMLDivElement | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const isMultiLine = ref(false)
 const textareaHeight = ref(40)
 let abortController: AbortController | null = null
-const sessionLoding = ref(true)
 
-onMounted(() => {
-    fetchSessionList()
-})
 
-const handleUserInfo = ()=>{
-    toast.show('用户信息功能开发中...','warning')
-}
 
-const fetchSessionList = async () => {
-    try {
-        sessionLoding.value = true
-        const res = await request.get("/ai/session/list")
-        sessionList.value = res.data || []
-    } catch (error) {
-        console.error("获取会话列表失败:", error)
-    } finally {
-        sessionLoding.value = false
-    }
+const handleUserInfo = () => {
+    toast.show('用户信息功能开发中...', 'warning')
 }
 
 const startNewChat = () => {
-    sessionId.value = ""
+    currentSessionId.value = ""
     messages.value = []
-    fetchSessionList()
 }
 
-const selectSession = (session: AiChatSession) => {
+const selectSession = (session: IAiChatSession) => {
     // sessionId.value = session.sessionId
     toast.show('查看历史功能开发中...')
 }
 
-const deleteSession = async (targetSessionId: string) => {
+const handleDeleteSession = async (targetSessionId: string) => {
     try {
-        await request.delete(`/ai/session/delete/${targetSessionId}`)
-        if (sessionId.value === targetSessionId) {
+        await sessionStore.deleteSession(targetSessionId)
+        if (currentSessionId.value === targetSessionId) {
             startNewChat()
-        } else {
-            fetchSessionList()
         }
     } catch (error: any) {
-        toast.show(error.message, 'error')
-        console.error("删除会话失败:", error)
+
+    } finally {
+
     }
 }
 
@@ -287,6 +311,15 @@ const adjustTextareaHeight = () => {
 }
 
 const send = async () => {
+    console.log('isLoggedIn:', authStore.isLoggedIn, 'token:', authStore.token)
+    if (!authStore.isLoggedIn) {
+        console.log(`用户未登录`)
+        // 清除登录状态
+        authStore.logout()
+        // 弹出登录对话框
+        authStore.openLoginDialog()
+        return
+    }
     if (!input.value.trim() || loading.value) return
 
     const text = input.value
@@ -295,7 +328,7 @@ const send = async () => {
     textareaHeight.value = 40
     messages.value.push({ role: "user", content: text })
 
-    const aiMsg: Message = { role: "assistant", content: "" }
+    const aiMsg: IMessage = { role: "assistant", content: "" }
     messages.value.push(aiMsg)
     loading.value = true
     await scrollBottom()
@@ -306,14 +339,26 @@ const send = async () => {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authStore.token}` },
             body: JSON.stringify({
-                sessionId: sessionId.value || null,
+                sessionId: currentSessionId.value || null,
                 message: text,
             }),
             signal: abortController.signal,
         })
 
         if (!response.ok) {
-            throw new Error(`请求失败:${response.status}`)
+            if (response.status === 401) {
+                // 清除登录状态
+                authStore.logout()
+                // 弹出登录对话框
+                authStore.openLoginDialog()
+                // 停止加载并返回
+                loading.value = false
+                await scrollBottom()
+                return
+            } else {
+                // 其他 HTTP 错误（如 500）
+                throw new Error(`请求失败: ${response.status}`)
+            }
         }
         if (!response.body) {
             throw new Error("浏览器不支持流式响应")
@@ -346,8 +391,8 @@ const send = async () => {
 
                 if (eventName === "session_created" && data) {
                     console.log("收到新会话ID:", data)
-                    sessionId.value = data
-                    fetchSessionList()
+                    currentSessionId.value = data
+                    sessionStore.getSessionList()
                 }
 
                 if (eventName === "done") {
@@ -357,7 +402,6 @@ const send = async () => {
 
                 if (eventName === "message" && data) {
                     aiMsg.content += data
-                    // 由于我们使用了 :key="msg.content.length"，每次 content 变化都会重新渲染
                     await scrollBottom()
                 }
             }
@@ -391,6 +435,18 @@ const scrollBottom = async () => {
         el.scrollTop = el.scrollHeight
     }
 }
+
+onMounted(() => {
+    if (authStore.isLoggedIn) {
+        sessionStore.getSessionList()
+    }
+
+})
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside)
+})
+
 </script>
 
 <style scoped>

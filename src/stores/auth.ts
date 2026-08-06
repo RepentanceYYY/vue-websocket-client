@@ -1,27 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-// 定义 IP 信息接口
-interface IpInfo {
-    address: string
-    country: string
-    endLong: number
-    isp: string
-    lat: number
-    lng: number
-    overseas: boolean
-    province: string
-    startLong: number
-}
-
-// 定义登录返回数据接口（与后端一致）
-interface LoginData {
-    token: string
-    userId: number
-    nickname: string
-    avatar: string
-    ipInfo: IpInfo
-}
+import { type IIpInfo, type ILoginData } from '@/types/twinbrain'
 
 export const useAuthStore = defineStore('authStore', () => {
 
@@ -34,7 +13,7 @@ export const useAuthStore = defineStore('authStore', () => {
     )
     const nickname = ref<string | null>(sessionStorage.getItem('nickname'))
     const avatar = ref<string | null>(sessionStorage.getItem('avatar'))
-    const ipInfo = ref<IpInfo | null>(
+    const ipInfo = ref<IIpInfo | null>(
         sessionStorage.getItem('ipInfo') ? JSON.parse(sessionStorage.getItem('ipInfo')!) : null
     )
 
@@ -94,7 +73,7 @@ export const useAuthStore = defineStore('authStore', () => {
      * @param data - 接口返回的 data 对象
      * @param time - 可选，登录时间（可由调用方传入，如 new Date().toISOString()）
      */
-    const setLoginInfo = (data: LoginData, time?: string) => {
+    const setLoginInfo = (data: ILoginData, time?: string) => {
         token.value = data.token
         userId.value = data.userId
         nickname.value = data.nickname
