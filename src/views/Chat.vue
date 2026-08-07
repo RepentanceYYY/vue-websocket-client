@@ -23,7 +23,7 @@
                 <!-- 2. 会话列表展示 -->
                 <template v-else-if="sessionStore.sessionList.length > 0">
                     <div v-for="session in sessionStore.sessionList" :key="session.sessionId"
-                        @click="selectSession(session)"
+                        @click="handleSelectSession(session)"
                         class="group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-colors"
                         :class="currentSessionId === session.sessionId ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-600 hover:bg-gray-100/80'">
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
@@ -99,7 +99,7 @@
                     <!-- ========== 消息列表 ========== -->
                     <template v-for="(msg, index) in messages" :key="index">
                         <!-- 用户消息 -->
-                        <div v-if="msg.role === 'user'" class="flex justify-end">
+                        <div v-if="msg.role === 'USER'" class="flex justify-end">
                             <div
                                 class="max-w-[80%] bg-purple-400 text-white rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-xs">
                                 {{ msg.content }}
@@ -116,7 +116,7 @@
 
 
                                 <!-- 流式文本 -->
-                                <div v-else-if="loading && msg.role === 'assistant'" class="whitespace-pre-wrap">
+                                <div v-else-if="loading && msg.role === 'ASSISTANT'" class="whitespace-pre-wrap">
                                     {{ msg.content }}
                                 </div>
 
@@ -163,7 +163,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, onBeforeUnmount } from "vue";
-import { User, Bot, Send, Square, Plus, MessageSquare, Trash2, ArrowUp, MoreHorizontal,Loader2 } from "@lucide/vue";
+import { User, Bot, Send, Square, Plus, MessageSquare, Trash2, ArrowUp, MoreHorizontal, Loader2 } from "@lucide/vue";
 import request from '@/utils/request'
 import LoginDialog from '@/components/LoginDialog.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
@@ -278,9 +278,22 @@ const startNewChat = () => {
     messages.value = []
 }
 
-const selectSession = (session: IAiChatSession) => {
-    // sessionId.value = session.sessionId
-    toast.show('查看历史功能开发中...')
+const handleSelectSession = async (session: IAiChatSession) => {
+    try {
+        loading.value = true
+        const res: any = await sessionStore.getSessionMessages(session.sessionId)
+        messages.value = [];
+        const remoteSessionMessages = res.data || [];
+        messages.value = remoteSessionMessages.map((item: any) => ({
+            role: item.role,
+            content: item.content
+        }))
+        currentSessionId.value = session.sessionId
+    } catch (e: any) {
+        toast.show(e.message || '获取失败', 'error')
+    } finally {
+        loading.value = false
+    }
 }
 
 const handleDeleteSession = async (targetSessionId: string) => {
@@ -326,9 +339,9 @@ const send = async () => {
     input.value = ""
     isMultiLine.value = false
     textareaHeight.value = 40
-    messages.value.push({ role: "user", content: text })
+    messages.value.push({ role: "USER", content: text })
 
-    const aiMsg: IMessage = { role: "assistant", content: "" }
+    const aiMsg: IMessage = { role: "ASSISTANT", content: "" }
     messages.value.push(aiMsg)
     loading.value = true
     await scrollBottom()

@@ -3,8 +3,8 @@ import { createRouter, createWebHashHistory, createWebHistory, type RouteRecordR
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'Chat',
-    component: () => import('@/views/Chat.vue')
+    name: 'ChatLayout',
+    component: () => import('@/views/ChatLayout.vue')
   },
   {
     path: '/terminal',

@@ -11,7 +11,7 @@ export interface IAiChatSession {
 }
 
 export interface IMessage {
-    role: "user" | "assistant";
+    role: "USER" | "ASSISTANT";
     content: string;
 }
 
